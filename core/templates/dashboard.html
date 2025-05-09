@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3>Monitoramento Completo</h3>
+        <div class="badge bg-primary">
+            Total de Itens: {{ total_geral }} | Não escaneados: {{ nao_escaneados }}
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Lista de Locais -->
+        <div class="accordion" id="locaisAccordion">
+            {% for local in locais %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#local{{ forloop.counter }}">
+                        📍 {{ local.nome }} 
+                        <span class="badge bg-secondary ms-2">{{ local.total }}</span>
+                    </button>
+                </h2>
+                
+                <div id="local{{ forloop.counter }}" 
+                     class="accordion-collapse collapse" 
+                     data-bs-parent="#locaisAccordion">
+                    <div class="accordion-body">
+                        <!-- Localizados -->
+                        <div class="card mb-3 border-success">
+                            <div class="card-header bg-success text-white d-flex justify-content-between">
+                                <span>Itens Corretos</span>
+                                <span class="badge bg-light text-success">{{ local.localizados|length }}</span>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                {% for item in local.localizados %}
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <div>
+                                        <strong>{{ item.tombo }}</strong>
+                                        <div class="text-muted">{{ item.descricao|truncatechars:40 }}</div>
+                                    </div>
+                                    <small class="text-success">Local oficial</small>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- Transferidos -->
+                        <div class="card mb-3 border-warning">
+                            <div class="card-header bg-warning d-flex justify-content-between">
+                                <span>Transferidos para Aqui</span>
+                                <span class="badge bg-light text-dark">{{ local.transferidos|length }}</span>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                {% for item in local.transferidos %}
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <div>
+                                        <strong>{{ item.tombo }}</strong>
+                                        <div class="text-muted">
+                                            {{ item.descricao|truncatechars:40 }}
+                                            <br>
+                                            <small>Local oficial: {{ item.local_oficial }}</small>
+                                        </div>
+                                    </div>
+                                    <small class="text-warning">Transferido</small>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- Não Localizados -->
+                        <div class="card border-danger">
+                            <div class="card-header bg-danger text-white d-flex justify-content-between">
+                                <span>Itens Faltantes</span>
+                                <span class="badge bg-light text-danger">{{ local.nao_localizados|length }}</span>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                {% for item in local.nao_localizados %}
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <div>
+                                        <strong>{{ item.tombo }}</strong>
+                                        <div class="text-muted">
+                                            {{ item.descricao|truncatechars:40 }}
+                                            <br>
+                                            <small>Último local: {{ item.local_atual|default:"Nunca escaneado" }}</small>
+                                        </div>
+                                    </div>
+                                    <small class="text-danger">Ausente</small>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

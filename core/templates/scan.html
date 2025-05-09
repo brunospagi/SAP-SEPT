@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="card mt-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Controle de Escaneamento</h3>
+        </div>
+        
+        <div class="card-body">
+            <!-- Controle de Local -->
+            <div class="mb-4">
+                <h4>1. Definir Local de Trabalho</h4>
+                <div class="input-group">
+                    <input type="text" id="localScan" 
+                           class="form-control form-control-lg" 
+                           placeholder="Escaneie o código do local ou digite"
+                           list="locaisSugeridos"
+                           autocomplete="off">
+                    <datalist id="locaisSugeridos"></datalist>
+                    <button class="btn btn-success" 
+                            type="button" 
+                            onclick="confirmarLocal()">
+                        <i class="fas fa-check"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Área de Escaneamento -->
+            <div id="areaScan" style="display: none;">
+                <div class="row">
+                    <!-- Scanner -->
+                    <div class="col-md-6 mb-3">
+                        <h4>2. Escaneamento por Câmera</h4>
+                        <div class="border p-2 position-relative">
+                            <video id="preview" class="w-100" style="height: 300px;"></video>
+                            <div class="scanner-overlay"></div>
+                            <small class="text-muted">Posicione o código na área destacada</small>
+                        </div>
+                    </div>
+
+                    <!-- Entrada Manual -->
+                    <div class="col-md-6">
+                        <h4>3. Entrada Manual</h4>
+                        <div class="input-group mb-3">
+                            <input type="text" id="inputManual" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Digite o número do tombo">
+                            <button class="btn btn-primary" 
+                                    type="button" 
+                                    onclick="processarInput()">
+                                <i class="fas fa-check"></i> Confirmar
+                            </button>
+                        </div>
+                        <div id="status" class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> Aguardando ações...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .scanner-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80%;
+        height: 150px;
+        border: 4px solid #00ff00;
+        box-shadow: 0 0 20px rgba(0,255,0,0.5);
+        pointer-events: none;
+    }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script>
+    let localAtual = null;
+    let scannerAtivo = false;
+
+    // Autocomplete de Locais
+    document.getElementById('localScan').addEventListener('input', function(e) {
+        if(e.target.value.length >= 2) {
+            fetch(`{% url 'buscar_locais' %}?term=${encodeURIComponent(e.target.value)}`)
+                .then(response => response.json())
+                .then(locais => {
+                    const datalist = document.getElementById('locaisSugeridos');
+                    datalist.innerHTML = locais.map(local => 
+                        `<option value="${local}">${local}</option>`
+                    ).join('');
+                });
+        }
+    });
+
+    // Confirmar Local
+    function confirmarLocal() {
+        localAtual = document.getElementById('localScan').value.trim();
+        if(localAtual) {
+            document.getElementById('areaScan').style.display = 'block';
+            iniciarScanner();
+            atualizarStatus(`Local confirmado: ${localAtual}`, 'success');
+        }
+    }
+
+    // Iniciar Scanner
+    function iniciarScanner() {
+        if(scannerAtivo) return;
+
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#preview'),
+                constraints: {
+                    facingMode: "environment",
+                    focusMode: "continuous",
+                    width: 640,
+                    height: 480
+                }
+            },
+            decoder: {
+                readers: ['code_128_reader']
+            }
+        }, err => {
+            if(err) {
+                console.error('Erro ao iniciar scanner:', err);
+                atualizarStatus('⛔ Falha ao acessar a câmera', 'danger');
+                return;
+            }
+            
+            Quagga.start();
+            scannerAtivo = true;
+            
+            Quagga.onDetected(result => {
+                if(result.codeResult) {
+                    processarTombo(result.codeResult.code);
+                }
+            });
+        });
+    }
+
+    // Processar Entrada Manual
+    function processarInput() {
+        const tombo = document.getElementById('inputManual').value.trim();
+        if(tombo) {
+            processarTombo(tombo);
+            document.getElementById('inputManual').value = '';
+        }
+    }
+
+    // Função de Processamento com Confirmação
+    async function processarTombo(tombo) {
+        if(!localAtual) {
+            atualizarStatus('Defina o local primeiro!', 'danger');
+            return;
+        }
+
+        try {
+            let confirmed = 'false';
+            
+            // Verificar se precisa de confirmação
+            const responseInit = await fetch("{% url 'scan' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({
+                    'tombo': tombo,
+                    'novo_local': localAtual,
+                    'precheck': 'true'
+                })
+            });
+            
+            const dataPre = await responseInit.json();
+            
+            if(dataPre.status === 'confirmation_required') {
+                if(!confirm(`${dataPre.message}\nLocal Oficial: ${dataPre.local_oficial}`)) {
+                    return;
+                }
+                confirmed = 'true';
+            }
+
+            // Processar movimentação
+            const response = await fetch("{% url 'scan' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({
+                    'tombo': tombo,
+                    'novo_local': localAtual,
+                    'confirmed': confirmed
+                })
+            });
+
+            const data = await response.json();
+            
+            if(data.status === 'success') {
+                atualizarStatus(`✅ ${data.descricao} registrado em ${localAtual}`, 'success');
+            } else {
+                atualizarStatus(`❌ Erro: ${data.message}`, 'danger');
+            }
+        } catch(error) {
+            console.error('Erro:', error);
+            atualizarStatus('⛔ Erro de conexão', 'danger');
+        }
+    }
+
+    // Atualizar Status
+    function atualizarStatus(mensagem, tipo) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = `<i class="fas fa-info-circle"></i> ${mensagem}`;
+        statusDiv.className = `alert alert-${tipo} fade show`;
+        statusDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+{% endblock %}

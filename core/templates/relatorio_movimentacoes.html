@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3>Relatório de Movimentações</h3>
+        <a href="?exportar=1" class="btn btn-success">
+            <i class="fas fa-file-csv"></i> Exportar CSV
+        </a>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Tombo</th>
+                    <th>Descrição</th>
+                    <th>Local Anterior</th>
+                    <th>Novo Local</th>
+                    <th>Responsável</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mov in movimentacoes %}
+                <tr>
+                    <td>{{ mov.data|date:"d/m/Y H:i" }}</td>
+                    <td>{{ mov.item.tombo }}</td>
+                    <td>{{ mov.item.descricao }}</td>
+                    <td>{{ mov.local_anterior }}</td>
+                    <td>{{ mov.novo_local }}</td>
+                    <td>{{ mov.responsavel.get_full_name|default:mov.responsavel.username }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
