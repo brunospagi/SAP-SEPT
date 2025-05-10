@@ -29,7 +29,7 @@ RUN python manage.py makemigrations
 RUN python manage.py migrate
 
 # Cria o superusuário (só funciona se o usuário não existir)
-RUN python manage.py createsuperuser --noinput --username admin --email docker
+RUN python manage.py createsuperuser --noinput --username admin --email brunospagi@gmail.com
 
 # Expõe a porta do Django
 EXPOSE 8000
