@@ -1,11 +1,107 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- Campo de busca -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-auto">
+                <input type="text" 
+                       class="form-control" 
+                       name="tombo_busca" 
+                       placeholder="Digite o número do tombo"
+                       value="{{ request.GET.tombo_busca }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resultado da busca -->
+{% if item_buscado %}
+<div class="card mb-4 border-info">
+    <div class="card-header bg-info text-white">
+        <h4 class="mb-0">Detalhes do Tombo: {{ item_buscado.tombo }}</h4>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5>Informações Básicas</h5>
+                <ul class="list-group">
+                    <li class="list-group-item">
+                        <strong>Descrição:</strong> {{ item_buscado.descricao }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Responsável:</strong> {{ item_buscado.responsavel.nome }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Local Oficial:</strong> {{ item_buscado.local_oficial }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Local Atual:</strong> 
+                        <span class="{% if item_buscado.local_atual != item_buscado.local_oficial %}text-warning{% endif %}">
+                            {{ item_buscado.local_atual|default:"Nunca escaneado" }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="col-md-6">
+                <h5>Histórico de Movimentações</h5>
+                {% if movimentacoes %}
+                    <div class="list-group">
+                        {% for mov in movimentacoes %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <small>{{ mov.data|date:"d/m/Y H:i" }}</small>
+                                <span class="badge bg-secondary">{{ mov.responsavel.get_full_name }}</span>
+                            </div>
+                            <div class="mt-2">
+                                De <strong>{{ mov.local_anterior|default:"-" }}</strong>
+                                para <strong>{{ mov.novo_local }}</strong>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-secondary mb-0">Nenhuma movimentação registrada</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar para o dashboard
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Dashboard Principal -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h3>Monitoramento Completo</h3>
-        <div class="badge bg-primary">
-            Total de Itens: {{ total_geral }} | Não escaneados: {{ nao_escaneados }}
+        <div class="d-flex flex-column align-items-end">
+            <div class="mb-2">
+                <span class="badge bg-primary p-2">
+                    Total: {{ total_geral }} | 
+                    Não Escaneados: {{ nao_escaneados }} |
+                    Localizados: {{ localizados_count }} ({{ porcentagem_localizados }}%)
+                </span>
+            </div>
+            <div class="progress" style="width: 200px; height: 20px;">
+                <div class="progress-bar bg-success" 
+                     role="progressbar" 
+                     style="width: {{ porcentagem_localizados }}%" 
+                     aria-valuenow="{{ porcentagem_localizados }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ porcentagem_localizados }}%
+                </div>
+            </div>
         </div>
     </div>
     
@@ -21,6 +117,9 @@
                             data-bs-target="#local{{ forloop.counter }}">
                         📍 {{ local.nome }} 
                         <span class="badge bg-secondary ms-2">{{ local.total }}</span>
+                        <span class="ms-2 badge {% if local.porcentagem_localizado >= 90 %}bg-success{% elif local.porcentagem_localizado >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ local.porcentagem_localizado }}% localizado
+                        </span>
                     </button>
                 </h2>
                 

@@ -218,5 +218,13 @@
         statusDiv.className = `alert alert-${tipo} fade show`;
         statusDiv.scrollIntoView({ behavior: 'smooth' });
     }
+
+    // Suporte a tecla Enter no input manual
+    document.getElementById('inputManual').addEventListener('keypress', function(e) {
+        if(e.key === 'Enter' || e.keyCode === 13) {
+            processarInput();
+            e.preventDefault();
+        }
+    });
 </script>
 {% endblock %}
