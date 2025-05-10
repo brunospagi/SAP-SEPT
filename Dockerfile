@@ -26,6 +26,7 @@ COPY . /app/
 
 # Executa migrações do banco de dados
 RUN python manage.py makemigrations
+RUN python manage.py makemigrations core
 RUN python manage.py migrate
 
 # Cria o superusuário (só funciona se o usuário não existir)
