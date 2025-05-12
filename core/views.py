@@ -7,6 +7,7 @@ from django.contrib import messages
 import csv
 import logging
 from django.utils import timezone
+from django.template.loader import render_to_string
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Table, TableStyle
@@ -14,9 +15,16 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, Spacer
+from django.contrib.auth.decorators import user_passes_test
+
 logger = logging.getLogger(__name__)
 
+
+def is_admin(user):
+    return user.groups.filter(name='Administradores').exists() or user.is_superuser
+
 @login_required
+@user_passes_test(is_admin)
 def importar_csv(request):
     if request.method == 'POST':
         if not request.FILES.get('arquivo'):
@@ -69,31 +77,40 @@ def dashboard(request):
     item_buscado = None
     movimentacoes = []
     tombo_busca = request.GET.get('tombo_busca')
+    local_filter = request.GET.get('local_filter')
 
+    # Aplicar filtro de local
+    if local_filter:
+        items_base = Item.objects.filter(local_oficial=local_filter)
+    else:
+        items_base = Item.objects.all()
+
+    # Busca por tombo
     if tombo_busca:
         try:
-            item_buscado = Item.objects.get(tombo=tombo_busca)
+            item_buscado = items_base.get(tombo=tombo_busca)
             movimentacoes = Movimentacao.objects.filter(item=item_buscado).order_by('-data')
         except Item.DoesNotExist:
             messages.error(request, "Tombo não encontrado!")
 
-    # Novas métricas
-    total_geral = Item.objects.count()
-    nao_escaneados = Item.objects.filter(local_atual='').count()
-    localizados_count = Item.objects.filter(local_atual=models.F('local_oficial')).count()
+    # Processar métricas
+    total_geral = items_base.count()
+    nao_escaneados = items_base.filter(local_atual='').count()
+    localizados_count = items_base.filter(local_atual=models.F('local_oficial')).count()
     
     try:
         porcentagem_localizados = round((localizados_count / total_geral) * 100, 2)
     except ZeroDivisionError:
         porcentagem_localizados = 0.0
 
+    # Processar locais para accordion
     locais = []
-    for local_oficial in Item.objects.values('local_oficial').distinct():
+    for local_oficial in items_base.values('local_oficial').distinct():
         loc = local_oficial['local_oficial']
         
-        localizados = Item.objects.filter(local_oficial=loc, local_atual=loc)
-        nao_localizados = Item.objects.filter(local_oficial=loc).exclude(local_atual=loc)
-        transferidos = Item.objects.filter(local_atual=loc).exclude(local_oficial=loc)
+        localizados = items_base.filter(local_oficial=loc, local_atual=loc)
+        nao_localizados = items_base.filter(local_oficial=loc).exclude(local_atual=loc)
+        transferidos = items_base.filter(local_atual=loc).exclude(local_oficial=loc)
         total_local = localizados.count() + nao_localizados.count()
         
         try:
@@ -454,4 +471,69 @@ def relatorio_nao_localizados(request):
         'relatorio': relatorio,
         'locais': locais_unicos,
         'local_filtro': local_filtro
+    })
+@login_required
+@user_passes_test(is_admin)
+def registro_manual(request):
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                responsavel = Responsavel.objects.get(id=request.POST.get('responsavel'))
+                
+                Item.objects.create(
+                    tombo=request.POST.get('tombo'),
+                    descricao=request.POST.get('descricao'),
+                    local_oficial=request.POST.get('local_oficial'),
+                    responsavel=responsavel,
+                    status='nao_localizado'
+                )
+                
+                messages.success(request, 'Item cadastrado com sucesso!')
+                return redirect('dashboard')
+                
+        except Exception as e:
+            messages.error(request, f'Erro no cadastro: {str(e)}')
+    
+    responsaveis = Responsavel.objects.all()
+    return render(request, 'registro_manual.html', {'responsaveis': responsaveis})
+
+@login_required
+@user_passes_test(is_admin)
+def movimentacao_manual(request):
+    # Obter todos os locais existentes (oficiais e atuais)
+    locais_existentes = Item.objects.annotate(
+        local=models.Case(
+            models.When(local_atual__isnull=False, then=models.F('local_atual')),
+            default=models.F('local_oficial'),
+            output_field=models.CharField()
+        )
+    ).order_by('local').values_list('local', flat=True).distinct()
+
+    if request.method == 'POST':
+        try:
+            item = Item.objects.get(tombo=request.POST.get('tombo'))
+            novo_local = request.POST.get('novo_local')
+            
+            Movimentacao.objects.create(
+                item=item,
+                local_anterior=item.local_atual,
+                novo_local=novo_local,
+                responsavel=request.user,
+                observacoes=request.POST.get('observacoes', '')
+            )
+            
+            item.local_atual = novo_local
+            item.status = 'localizado' if novo_local == item.local_oficial else 'nao_localizado'
+            item.save()
+            
+            messages.success(request, 'Movimentação registrada com sucesso!')
+            return redirect('dashboard')
+            
+        except Item.DoesNotExist:
+            messages.error(request, 'Tombo não encontrado!')
+        except Exception as e:
+            messages.error(request, f'Erro na movimentação: {str(e)}')
+    
+    return render(request, 'movimentacao_manual.html', {
+        'locais_existentes': locais_existentes
     })

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h4><i class="fas fa-plus-circle"></i> Cadastro Manual de Item</h4>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Número do Tombo</label>
+                    <input type="text" name="tombo" class="form-control" required>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Local Oficial</label>
+                    <input type="text" name="local_oficial" class="form-control" required>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Descrição</label>
+                    <textarea name="descricao" class="form-control" rows="3" required></textarea>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Responsável</label>
+                    <select name="responsavel" class="form-select">
+                        {% for responsavel in responsaveis %}
+                        <option value="{{ responsavel.id }}">{{ responsavel.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Salvar Item
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

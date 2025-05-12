@@ -1,27 +1,59 @@
 {% extends 'base.html' %}
-
+{% load auth_extras %}
 {% block content %}
-<!-- Campo de busca -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-auto">
-                <input type="text" 
-                       class="form-control" 
-                       name="tombo_busca" 
-                       placeholder="Digite o número do tombo"
-                       value="{{ request.GET.tombo_busca }}">
+<!-- Filtros Superiores -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-6">
+                        <select name="local_filter" class="form-select">
+                            <option value="">Todas as Salas</option>
+                            {% for local in locais|dictsort:"nome" %}
+                            <option value="{{ local.nome }}" 
+                                {% if request.GET.local_filter == local.nome %}selected{% endif %}>
+                                {{ local.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="tombo_busca" 
+                                   placeholder="Buscar por tombo"
+                                   value="{{ request.GET.tombo_busca }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search"></i> Buscar
-                </button>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if user|is_admin %}
+                <div class="btn-group">
+                    <a href="{% url 'registro_manual' %}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Novo Item
+                            </a>
+                        <a href="{% url 'movimentacao_manual' %}" class="btn btn-warning">
+                            <i class="fas fa-exchange-alt"></i> Movimentar
+                                </a>
+                </div>
+                {% endif %}
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
-<!-- Resultado da busca -->
+<!-- Resultado da Busca -->
 {% if item_buscado %}
 <div class="card mb-4 border-info">
     <div class="card-header bg-info text-white">
@@ -198,4 +230,64 @@
         </div>
     </div>
 </div>
+
+<style>
+    .form-select {
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .input-group {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-radius: 8px;
+    }
+    
+    .input-group .btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    .btn-group .btn {
+        padding: 0.5rem 1.5rem;
+        margin: 0 0.3rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-group .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .card-header h3 {
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+    
+    .progress {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .accordion-button {
+        font-weight: 500;
+        background-color: #f8f9fa;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: #e9ecef;
+        color: #212529;
+    }
+    
+    .badge {
+        font-size: 0.85em;
+        padding: 0.5em 0.75em;
+        border-radius: 0.5rem;
+    }
+</style>
 {% endblock %}

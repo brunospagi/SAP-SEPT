@@ -1,3 +1,4 @@
+{% load auth_extras %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -18,11 +19,13 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
+                    {% if user|is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'importar_csv' %}">
                             <i class="fas fa-file-import"></i> Importar
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'scan' %}">
                             <i class="fas fa-camera"></i> Escanear

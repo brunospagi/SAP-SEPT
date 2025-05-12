@@ -11,4 +11,7 @@ urlpatterns = [
     path('relatorio/', views.relatorio_movimentacoes, name='relatorio'),
     path('relatorio-pdf/', views.relatorio_pdf, name='relatorio_pdf'),
     path('relatorio_nao_localizados/', views.relatorio_nao_localizados, name='relatorio_nao_localizados'),
+    path('registro-manual/', views.registro_manual, name='registro_manual'),
+    path('movimentacao-manual/', views.movimentacao_manual, name='movimentacao_manual'),
+
 ]
