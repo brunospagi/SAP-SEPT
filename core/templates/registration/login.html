@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3><i class="fas fa-map-marker-alt"></i> Controle de Localização</h3>
+                    <p class="mb-0">Sistema de Inventário</p>
+                </div>
+                
+                <div class="card-body p-4">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i> Credenciais inválidas!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Usuário</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" 
+                                       name="username" 
+                                       class="form-control form-control-lg"
+                                       placeholder="Nome de usuário"
+                                       required
+                                       autofocus>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Senha</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" 
+                                       name="password" 
+                                       class="form-control form-control-lg"
+                                       placeholder="Senha de acesso"
+                                       required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i> Acessar Sistema
+                            </button>
+                        </div>
+
+                        <div class="text-center small text-muted">
+                            Problemas para acessar? <a href="#" class="text-decoration-none">Contate o administrador</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+    .input-group-text {
+        background-color: #f8f9fa;
+        border-right: 0;
+    }
+    .form-control {
+        border-left: 0;
+    }
+    .form-control:focus {
+        box-shadow: none;
+        border-color: #dee2e6;
+    }
+    .btn-primary {
+        background-color: #0d6efd;
+        border: none;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+        background-color: #0b5ed7;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}

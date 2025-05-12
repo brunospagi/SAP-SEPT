@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django.urls import path
 from core import views
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.views import LogoutView
+
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('dashboard/', views.dashboard, name='dashboard'),
+    path('', views.dashboard, name='dashboard'),
     path('importar/', views.importar_csv, name='importar_csv'),
     path('scan/', views.scan_codigo, name='scan'),
     path('buscar-locais/', views.buscar_locais, name='buscar_locais'),
@@ -13,5 +15,6 @@ urlpatterns = [
     path('relatorio_nao_localizados/', views.relatorio_nao_localizados, name='relatorio_nao_localizados'),
     path('registro-manual/', views.registro_manual, name='registro_manual'),
     path('movimentacao-manual/', views.movimentacao_manual, name='movimentacao_manual'),
-
+    path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),   
+    path('accounts/logout/', LogoutView.as_view(template_name='registration/logged_out.html',next_page='/accounts/login/'),name='logout'),
 ]
