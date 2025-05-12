@@ -7,10 +7,13 @@ RUN mkdir /app
 # Define o diretório de trabalho
 WORKDIR /app
 
+# Recebe o valor do .env como argumento de build
+ARG DJANGO_SUPERUSER_PASSWORD
+
 # Variáveis de ambiente
 ENV PYTHONDONTWRITEBYTECODE=1  
 ENV PYTHONUNBUFFERED=1          
-ENV DJANGO_SUPERUSER_PASSWORD=2013@Als  
+ENV DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD  
 
 # Atualiza o pip
 RUN pip install --upgrade pip
