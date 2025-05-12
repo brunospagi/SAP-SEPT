@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-danger text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">Relatório de Inconsistências</h3>
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <select name="local" class="form-select" style="width: 250px;">
+                    <option value="">Todos os Locais</option>
+                    <option value="nenhum" {% if local_filtro == 'nenhum' %}selected{% endif %}>
+                        Não Escaneados
+                    </option>
+                    {% for local in locais %}
+                    <option value="{{ local }}" {% if local == local_filtro %}selected{% endif %}>
+                        {{ local }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-light">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <div class="vr mx-2"></div>
+                <a href="?exportar=1{% if local_filtro %}&local={{ local_filtro }}{% endif %}" 
+                   class="btn btn-success">
+                    <i class="fas fa-file-csv"></i>
+                </a>
+                <a href="?exportar_pdf=1{% if local_filtro %}&local={{ local_filtro }}{% endif %}" 
+                   class="btn btn-danger">
+                    <i class="fas fa-file-pdf"></i>
+                </a>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if relatorio %}
+            {% for local, dados in relatorio.items %}
+            <div class="card mb-4 border-dark">
+                <div class="card-header bg-secondary text-white">
+                    <div class="d-flex justify-content-between">
+                        <h5 class="mb-0">{{ local }}</h5>
+                        <div>
+                            <span class="badge bg-warning text-dark">
+                                {{ dados.nao_localizados|length }} Não Bipados
+                            </span>
+                            <span class="badge bg-danger ms-2">
+                                {{ dados.nao_encontrados|length }} Não Encontrados
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Não Bipados -->
+                    {% if dados.nao_localizados %}
+                    <div class="mb-4">
+                        <h6 class="text-danger mb-3">
+                            <i class="fas fa-exclamation-triangle"></i> Itens Não Bipados
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tombo</th>
+                                        <th>Descrição</th>
+                                        <th>Última Atualização</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in dados.nao_localizados %}
+                                    <tr>
+                                        <td>{{ item.tombo }}</td>
+                                        <td>{{ item.descricao }}</td>
+                                        <td>{{ item.data_atualizacao|date:"d/m/Y H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Não Encontrados -->
+                    {% if dados.nao_encontrados %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="text-warning mb-3">
+                            <i class="fas fa-search-minus"></i> Itens Não Encontrados
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tombo</th>
+                                        <th>Data do Erro</th>
+                                        <th>Descrição</th>
+                                        <th>Responsável</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in dados.nao_encontrados %}
+                                    <tr>
+                                        <td>{{ item.tombo }}</td>
+                                        <td>{{ item.data_registro|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ item.descricao }}</td>
+                                        <td>{{ item.responsavel.get_full_name|default:item.responsavel.username }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-success text-center">
+                <i class="fas fa-check-circle fa-2x"></i>
+                <h4 class="mt-3">Nenhuma inconsistência encontrada!</h4>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .table-sm th, .table-sm td {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .badge {
+        font-size: 0.85em;
+        padding: 0.5em 0.75em;
+    }
+    .border-top {
+        border-top: 2px solid #dee2e6!important;
+    }
+</style>
+{% endblock %}

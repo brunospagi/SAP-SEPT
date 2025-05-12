@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Item, Movimentacao, Responsavel
+from .models import Item, ItemNaoEncontrado, Movimentacao, Responsavel
 from django.db import transaction, models
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
@@ -132,7 +132,6 @@ def scan_codigo(request):
         try:
             item = Item.objects.get(tombo=tombo)
             
-            # Modo de pré-verificação
             if precheck == 'true':
                 if novo_local != item.local_oficial:
                     return JsonResponse({
@@ -142,7 +141,6 @@ def scan_codigo(request):
                     })
                 return JsonResponse({'status': 'ok'})
 
-            # Processar movimentação
             if novo_local != item.local_atual:
                 if novo_local != item.local_oficial and confirmed != 'true':
                     return JsonResponse({
@@ -167,7 +165,27 @@ def scan_codigo(request):
             })
             
         except Item.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Item não encontrado'}, status=404)
+            if novo_local:
+                # Verificar duplicidade de registro
+                existe = ItemNaoEncontrado.objects.filter(
+                    tombo=tombo
+                ).exists()
+                
+                if not existe:
+                    ItemNaoEncontrado.objects.create(
+                        local_trabalho=novo_local,
+                        tombo=tombo,
+                        descricao=f"Item não encontrado em {timezone.now().strftime('%d/%m/%Y %H:%M')}",
+                        responsavel=request.user
+                    )
+                    mensagem = 'Item registrado para investigação'
+                else:
+                    mensagem = 'Item já registrado anteriormente'
+                    
+                return JsonResponse({
+                    'status': 'not_found',
+                    'message': mensagem
+                }, status=404)
     
     return render(request, 'scan.html')
 
@@ -312,3 +330,128 @@ def buscar_locais(request):
     ).values_list('local_oficial', flat=True).distinct()[:10]
     
     return JsonResponse(list(locais), safe=False)
+
+@login_required
+def relatorio_nao_localizados(request):
+    local_filtro = request.GET.get('local', '')
+    
+    # Consultas base
+    nao_localizados = Item.objects.filter(status='nao_localizado')
+    nao_encontrados = ItemNaoEncontrado.objects.all()
+    
+    # Aplicar filtro
+    if local_filtro:
+        if local_filtro == 'nenhum':
+            nao_localizados = nao_localizados.filter(local_atual='')
+        else:
+            nao_localizados = nao_localizados.filter(local_atual=local_filtro)
+        
+        nao_encontrados = nao_encontrados.filter(local_trabalho=local_filtro)
+
+    # Agrupar dados
+    relatorio = {}
+    
+    # Processar não localizados
+    for item in nao_localizados.order_by('local_atual'):
+        local = item.local_atual if item.local_atual else "Não escaneado"
+        if local not in relatorio:
+            relatorio[local] = {'nao_localizados': [], 'nao_encontrados': []}
+        relatorio[local]['nao_localizados'].append(item)
+    
+    # Processar não encontrados
+    for item in nao_encontrados.order_by('-data_registro'):
+        local = item.local_trabalho
+        if local not in relatorio:
+            relatorio[local] = {'nao_localizados': [], 'nao_encontrados': []}
+        relatorio[local]['nao_encontrados'].append(item)
+
+    # Lista de locais para filtro
+    locais_nao_localizados = Item.objects.filter(status='nao_localizado'
+        ).exclude(local_atual='').values_list('local_atual', flat=True).distinct()
+    locais_nao_encontrados = ItemNaoEncontrado.objects.values_list(
+        'local_trabalho', flat=True).distinct()
+    locais_unicos = sorted(list(set(locais_nao_localizados.union(locais_nao_encontrados))))
+
+    # Export CSV
+    if 'exportar' in request.GET:
+        response = HttpResponse(content_type='text/csv')
+        filename = f"relatorio_{local_filtro or 'todos'}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Tipo', 'Local', 'Tombo', 'Descrição', 'Data', 'Responsável'])
+        
+        for local, dados in relatorio.items():
+            for item in dados['nao_localizados']:
+                writer.writerow([
+                    'Não Bipado',
+                    local,
+                    item.tombo,
+                    item.descricao,
+                    item.data_atualizacao.strftime("%d/%m/%Y %H:%M"),
+                    item.responsavel.get_full_name() or item.responsavel.username,
+                ])
+            for item in dados['nao_encontrados']:
+                writer.writerow([
+                    'Não Encontrado',
+                    local,
+                    item.tombo,
+                    item.descricao,
+                    item.data_registro.strftime("%d/%m/%Y %H:%M"),
+                    item.responsavel.get_full_name() or item.responsavel.username,
+                ])
+        
+        return response
+
+    # Export PDF
+    if 'exportar_pdf' in request.GET:
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"relatorio_{local_filtro or 'todos'}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        pdf = canvas.Canvas(response, pagesize=landscape(letter))
+        width, height = landscape(letter)
+        
+        # Cabeçalho
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(50, height - 50, "Relatório de Inconsistências")
+        pdf.setFont("Helvetica", 12)
+        pdf.drawString(50, height - 70, f"Filtro: {local_filtro or 'Todos os locais'}")
+        
+        y = height - 100
+        for local, dados in relatorio.items():
+            pdf.setFont("Helvetica-Bold", 14)
+            pdf.drawString(50, y, f"Local: {local}")
+            y -= 30
+            
+            if dados['nao_localizados']:
+                pdf.setFont("Helvetica-Bold", 12)
+                pdf.drawString(60, y, "Itens Não Bipados:")
+                y -= 20
+                pdf.setFont("Helvetica", 10)
+                for item in dados['nao_localizados']:
+                    pdf.drawString(70, y, f"• {item.tombo} - {item.descricao[:50]} ({item.data_atualizacao.strftime('%d/%m/%y %H:%M')})")
+                    y -= 15
+            
+            if dados['nao_encontrados']:
+                pdf.setFont("Helvetica-Bold", 12)
+                pdf.drawString(60, y, "Itens Não Encontrados:")
+                y -= 20
+                pdf.setFont("Helvetica", 10)
+                for item in dados['nao_encontrados']:
+                    pdf.drawString(70, y, f"• {item.tombo} - {item.descricao[:50]} ({item.data_registro.strftime('%d/%m/%y %H:%M')}) - Responsável: {item.responsavel.username} ")
+                    y -= 15
+            
+            y -= 30
+            if y < 100:
+                pdf.showPage()
+                y = height - 50
+
+        pdf.save()
+        return response
+
+    return render(request, 'relatorio_nao_localizados.html', {
+        'relatorio': relatorio,
+        'locais': locais_unicos,
+        'local_filtro': local_filtro
+    })

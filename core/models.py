@@ -1,4 +1,3 @@
-# core/models.py
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -32,4 +31,17 @@ class Movimentacao(models.Model):
     local_anterior = models.CharField(max_length=100)
     novo_local = models.CharField(max_length=100)
     responsavel = models.ForeignKey(User, on_delete=models.CASCADE)
-    data = models.DateTimeField(auto_now_add=True)  # Novo campo
+    data = models.DateTimeField(auto_now_add=True)
+
+class ItemNaoEncontrado(models.Model):
+    local_trabalho = models.CharField(max_length=255)
+    tombo = models.CharField(max_length=20)
+    responsavel = models.ForeignKey(User, on_delete=models.SET_NULL, null=True) 
+    descricao = models.TextField(blank=True)
+    data_registro = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('tombo', 'local_trabalho')
+
+    def __str__(self):
+        return f"{self.tombo} - {self.local_trabalho}"
