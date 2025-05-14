@@ -51,7 +51,7 @@
                             {{ user.get_full_name|default:user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user-cog me-2"></i>Meu Perfil</a></li>
+                            <li><a class="dropdown-item" href="/admin/"><i class="fas fa-user-cog me-2"></i>Meu Perfil</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}">
